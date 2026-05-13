@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Смены">
+<meta name="theme-color" content="#0f0f0f">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.png">
+<title>Смены за баром</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Unbounded:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f0f0f; --surface: #181818; --surface2: #1e1e1e;
+    --border: #2a2a2a; --text: #e8e8e8; --muted: #666;
+    --col-date: #1a1a2e; --col-bar: #1a1f2e; --col-hookah: #0d1f14;
+    --col-tips: #1f1a0d; --col-san: #1f0d0d; --col-income: #1a1a0d; --col-notes: #181818;
+    --green: #4ade80; --amber: #fbbf24; --red: #f87171; --purple: #a78bfa; --blue: #60a5fa;
+  }
+  body { font-family: 'JetBrains Mono', monospace; background: var(--bg); color: var(--text); min-height: 100vh; padding: 20px 16px 40px; }
+  h1 { font-family: 'Unbounded', sans-serif; font-size: 16px; font-weight: 600; letter-spacing: -0.5px; margin-bottom: 20px; }
+
+  .controls { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 10px; align-items: center; }
+  select, button, input { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+  select { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 7px 8px; border-radius: 4px; cursor: pointer; outline: none; }
+
+  .btn { padding: 7px 12px; border-radius: 4px; border: 1px solid var(--border); cursor: pointer; font-size: 12px; font-weight: 500; transition: background 0.15s; display: inline-flex; align-items: center; gap: 5px; -webkit-tap-highlight-color: transparent; }
+  .btn-shift        { background: #0d1421; color: var(--blue);  border-color: #1a2d4a; }
+  .btn-hookah       { background: #0d1f14; color: var(--green); border-color: #1a3d24; }
+  .btn-san          { background: #1f0d0d; color: var(--red);   border-color: #3d1a1a; }
+  .btn-csv          { background: #1a1f2e; color: var(--blue);  border-color: #1e2d4a; }
+
+  .summary { display: flex; gap: 1px; margin-bottom: 16px; background: var(--border); border-radius: 6px; overflow: hidden; flex-wrap: wrap; }
+  .summary-item { flex: 1; min-width: 80px; background: var(--surface); padding: 10px 12px; }
+  .summary-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 3px; }
+  .summary-value { font-size: 17px; font-weight: 600; font-family: 'Unbounded', sans-serif; }
+  .summary-value.green  { color: var(--green); }
+  .summary-value.amber  { color: var(--amber); }
+  .summary-value.blue   { color: var(--blue); }
+  .summary-value.purple { color: var(--purple); }
+  .summary-value.yellow { color: #facc15; }
+
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; -webkit-overflow-scrolling: touch; }
+  table { width: 100%; border-collapse: collapse; min-width: 860px; }
+  thead th { background: var(--surface2); padding: 9px 10px; text-align: left; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); border-bottom: 1px solid var(--border); white-space: nowrap; }
+  tbody tr { border-bottom: 1px solid var(--border); }
+  tbody tr:last-child { border-bottom: none; }
+  td { padding: 0; vertical-align: middle; }
+  .cell { padding: 7px 10px; height: 40px; display: flex; align-items: center; }
+
+  .td-date   { background: var(--col-date);   min-width: 155px; }
+  .td-bar    { background: var(--col-bar);    min-width: 85px; }
+  .td-hookah { background: var(--col-hookah); min-width: 130px; }
+  .td-tips   { background: var(--col-tips);   min-width: 110px; }
+  .td-income { background: var(--col-income); min-width: 110px; }
+  .td-san    { background: var(--col-san);    min-width: 60px; justify-content: center; }
+  .td-notes  { background: var(--col-notes);  min-width: 160px; }
+  .td-del    { background: var(--surface);    width: 40px; justify-content: center; }
+
+  .badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-right: 6px; flex-shrink: 0; }
+  .badge-week    { background: #1a3d2a; color: #4ade80; }
+  .badge-weekend { background: #2d1a5a; color: #a78bfa; }
+  .badge-san     { background: #3d1a08; color: #fb923c; }
+  .badge-hookah  { background: #0d1f3a; color: #60a5fa; }
+
+  .hours-text  { font-size: 13px; color: var(--blue); }
+  .income-text { font-size: 13px; color: #facc15; font-weight: 600; }
+
+  input[type="text"], input[type="number"] { width: 100%; background: transparent; border: none; color: var(--text); font-size: 13px; font-family: 'JetBrains Mono', monospace; outline: none; padding: 0; }
+  input[type="number"] { -moz-appearance: textfield; }
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+  input::placeholder { color: var(--muted); }
+
+  .hookah-wrap { display: flex; align-items: center; gap: 6px; width: 100%; }
+  .hookah-sum  { font-size: 11px; color: var(--green); white-space: nowrap; flex-shrink: 0; }
+
+  .btn-del { background: none; border: none; color: #444; cursor: pointer; padding: 4px; border-radius: 3px; font-size: 14px; -webkit-tap-highlight-color: transparent; }
+
+  .empty { text-align: center; padding: 40px; color: var(--muted); font-size: 13px; }
+
+  /* Toast */
+  .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(20px); background: #1a3d2a; color: #4ade80; border: 1px solid #2a5a3a; padding: 10px 20px; border-radius: 6px; font-size: 12px; opacity: 0; transition: all 0.3s; pointer-events: none; white-space: nowrap; z-index: 999; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<h1>☰ смены за баром</h1>
+
+<div class="controls">
+  <button class="btn btn-shift"  onclick="addShift('bar')">＋ бар</button>
+  <button class="btn btn-hookah" onclick="addShift('hookah')">＋ кальян</button>
+  <button class="btn btn-san"    onclick="addSanDay()">＋ сан</button>
+  <select id="filterMonth" onchange="render()">
+    <option value="">все мес.</option>
+    <option value="0">янв</option><option value="1">фев</option>
+    <option value="2">мар</option><option value="3">апр</option>
+    <option value="4">май</option><option value="5">июн</option>
+    <option value="6">июл</option><option value="7">авг</option>
+    <option value="8">сен</option><option value="9">окт</option>
+    <option value="10">ноя</option><option value="11">дек</option>
+  </select>
+  <select id="filterYear" onchange="render()"></select>
+  <button class="btn btn-csv" onclick="downloadCSV()">↓ CSV</button>
+</div>
+
+<div class="summary" id="summary"></div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>дата</th><th>бар</th><th>кальяны</th><th>чаевые ₽</th><th>доход ₽</th><th>сан.</th><th>заметки</th><th></th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const DAYS_RU = ['вс','пн','вт','ср','чт','пт','сб'];
+
+let shifts = [];
+try { shifts = JSON.parse(localStorage.getItem('barShifts') || '[]'); } catch(e) { shifts = []; }
+
+function save() {
+  try { localStorage.setItem('barShifts', JSON.stringify(shifts)); } catch(e) {}
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function isWeekend(d) { const day = new Date(d+'T12:00:00').getDay(); return day===0||day===6; }
+function shiftHours(d) { return isWeekend(d) ? 13 : 12; }
+function parseHookah(val) {
+  if (!val) return 0;
+  return val.split('+').reduce((s,x)=>{ const n=parseInt(x.trim(),10); return s+(isNaN(n)?0:n); },0);
+}
+function hookahIncome(val) { const n=parseHookah(val); return n ? 200+n*25 : 0; }
+function todayStr() { return new Date().toISOString().slice(0,10); }
+
+function addShift(type) {
+  shifts.push({ id: Date.now(), date: todayStr(), san: false, type: type||'bar', hookah:'', tips:'', notes:'' });
+  save(); render();
+  toast(type==='hookah' ? '+ кальянная смена' : '+ барная смена');
+}
+function addSanDay() {
+  shifts.push({ id: Date.now(), date: todayStr(), san: true, type:'san', hookah:'', tips:'', notes:'' });
+  save(); render(); toast('+ сан. день');
+}
+function deleteShift(id) {
+  shifts = shifts.filter(s => s.id !== id);
+  save(); render();
+}
+
+function hookahInput(el, id) {
+  let val = el.value, pos = el.selectionStart;
+  let clean = val.replace(/[^\d+]/g,'');
+  let rebuilt = '';
+  for (let i=0;i<clean.length;i++) {
+    rebuilt += clean[i];
+    if (/\d/.test(clean[i]) && i<clean.length-1 && clean[i+1]!=='+') rebuilt+='+';
+  }
+  rebuilt = rebuilt.replace(/\++/g,'+').replace(/^\+/,'');
+  let newPos = Math.max(0,Math.min(pos+(rebuilt.length-val.length),rebuilt.length));
+  el.value = rebuilt; el.setSelectionRange(newPos,newPos);
+  update(id,'hookah',rebuilt);
+  const s = el.closest('tr').querySelector('.hookah-sum');
+  if (s) s.textContent = parseHookah(rebuilt)||'';
+}
+
+function update(id, field, value) {
+  const s = shifts.find(s=>s.id===id);
+  if (s) { s[field]=value; save(); }
+  if (field==='hookah'||field==='tips') renderSummary();
+}
+
+function filtered() {
+  const m = document.getElementById('filterMonth').value;
+  const y = document.getElementById('filterYear').value;
+  return shifts.filter(s => {
+    const d = new Date(s.date+'T12:00:00');
+    if (m!==''&&d.getMonth()!==+m) return false;
+    if (y!==''&&d.getFullYear()!==+y) return false;
+    return true;
+  }).sort((a,b)=>a.date>b.date?-1:1);
+}
+
+function populateYears() {
+  const sel = document.getElementById('filterYear');
+  const years = [...new Set(shifts.map(s=>new Date(s.date+'T12:00:00').getFullYear()))].sort((a,b)=>b-a);
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">все г.</option>'+years.map(y=>`<option value="${y}">${y}</option>`).join('');
+  sel.value = cur;
+}
+
+function renderSummary() {
+  const all = filtered();
+  const bar    = all.filter(s=>!s.san&&s.type!=='hookah');
+  const kln    = all.filter(s=>!s.san&&s.type==='hookah');
+  const sanCnt = all.filter(s=>s.san).length;
+  const hours  = bar.reduce((s,r)=>s+shiftHours(r.date),0);
+  const total  = all.reduce((s,r)=>s+parseHookah(r.hookah),0);
+  const tips   = all.reduce((s,r)=>s+(parseFloat(r.tips)||0),0);
+  const income = all.filter(s=>!s.san).reduce((s,r)=>s+hookahIncome(r.hookah),0);
+  document.getElementById('summary').innerHTML = `
+    <div class="summary-item"><div class="summary-label">бар</div><div class="summary-value blue">${bar.length}${sanCnt?`<span style="font-size:10px;color:#fb923c"> +${sanCnt}</span>`:''}</div></div>
+    <div class="summary-item"><div class="summary-label">кальян см.</div><div class="summary-value green">${kln.length}</div></div>
+    <div class="summary-item"><div class="summary-label">часов</div><div class="summary-value purple">${hours}</div></div>
+    <div class="summary-item"><div class="summary-label">кальяны</div><div class="summary-value green">${total}</div></div>
+    <div class="summary-item"><div class="summary-label">чаевые</div><div class="summary-value amber">${tips.toLocaleString('ru-RU')}</div></div>
+    <div class="summary-item"><div class="summary-label">доход</div><div class="summary-value yellow">${income.toLocaleString('ru-RU')} ₽</div></div>
+  `;
+}
+
+function render() {
+  populateYears(); renderSummary();
+  const data = filtered();
+  const tbody = document.getElementById('tbody');
+  if (!data.length) { tbody.innerHTML=`<tr><td colspan="8"><div class="empty">нет записей</div></td></tr>`; return; }
+  tbody.innerHTML = data.map(s => {
+    const isKln = s.type==='hookah', wknd = isWeekend(s.date);
+    const badge = s.san?`<span class="badge badge-san">сан</span>`
+      :isKln?`<span class="badge badge-hookah">кальян</span>`
+      :wknd?`<span class="badge badge-weekend">вых</span>`
+           :`<span class="badge badge-week">буд</span>`;
+    const hoursHtml = s.san?'—':isKln?`<span style="color:var(--green)">кальян</span>`:`${shiftHours(s.date)} ч`;
+    const hSum = parseHookah(s.hookah);
+    const income = s.san?0:hookahIncome(s.hookah);
+    const incStr = income?`${income.toLocaleString('ru-RU')} ₽`:`<span style="color:var(--muted)">—</span>`;
+    return `
+    <tr data-id="${s.id}">
+      <td class="td-date"><div class="cell">${badge}<input type="date" value="${s.date}" style="background:transparent;border:none;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:12px;outline:none;cursor:pointer;flex:1" onchange="update(${s.id},'date',this.value);render()"></div></td>
+      <td class="td-bar"><div class="cell"><span class="hours-text">${hoursHtml}</span></div></td>
+      <td class="td-hookah"><div class="cell"><div class="hookah-wrap"><input type="text" placeholder="2+1+3" value="${s.hookah||''}" oninput="hookahInput(this,${s.id})"><span class="hookah-sum">${hSum||''}</span></div></div></td>
+      <td class="td-tips"><div class="cell"><input type="number" placeholder="0" value="${s.tips||''}" oninput="update(${s.id},'tips',this.value)"></div></td>
+      <td class="td-income"><div class="cell"><span class="income-text">${incStr}</span></div></td>
+      <td class="td-san"><div class="cell">${s.san?'🧹':''}</div></td>
+      <td class="td-notes"><div class="cell"><input type="text" placeholder="заметки…" value="${(s.notes||'').replace(/"/g,'&quot;')}" oninput="update(${s.id},'notes',this.value)"></div></td>
+      <td class="td-del"><div class="cell"><button class="btn-del" onclick="deleteShift(${s.id})">🗑</button></div></td>
+    </tr>`;
+  }).join('');
+}
+
+function downloadCSV() {
+  const data = filtered();
+  const hdr = ['Дата','День','Тип','Часы','Кальяны','Чаевые ₽','Доход ₽','Заметки'];
+  const rows = data.map(s => {
+    const d = new Date(s.date+'T12:00:00');
+    const day  = DAYS_RU[d.getDay()];
+    const type = s.san?'Сан.день':s.type==='hookah'?'Кальян':isWeekend(s.date)?'Бар-вых':'Бар-буд';
+    const hrs  = (s.san||s.type==='hookah')?'':shiftHours(s.date);
+    const inc  = s.san?'':hookahIncome(s.hookah)||'';
+    return [s.date,day,type,hrs,parseHookah(s.hookah)||'',s.tips||'',inc,`"${(s.notes||'').replace(/"/g,'""')}"`];
+  });
+  const csv = [hdr,...rows].map(r=>r.join(';')).join('\n');
+  const blob = new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download='смены.csv'; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+// Service Worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+
+render();
+</script>
+</body>
+</html>
